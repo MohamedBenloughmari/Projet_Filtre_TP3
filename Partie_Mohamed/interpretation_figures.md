@@ -3,6 +3,9 @@
 This note explains the four figures produced by [`experiments.py`](experiments.py) and the formulas behind each curve
 ([`ekf.py`](ekf.py), [`cramer_rao_general.py`](cramer_rao_general.py)).
 
+The main text uses results that are proved in **[Appendix A](#appendix-a--mathematical-background-and-proofs)**, so the note can be read without the course:
+notation, Gaussian identities, Fisher information, the Bayesian Cramér–Rao inequality, the derivation of the $J_k$ recursion, and the Kalman filter.
+
 ---
 
 ## 1. Model
@@ -123,6 +126,8 @@ $$
 
 $\operatorname{wrap}$ maps the angle innovation to $[-\pi, \pi)$.
 
+Appendix A.5 derives these equations from Gaussian conditioning. It also shows that, for a **linear** measurement, they produce exactly $P_k = J_k^{-1}$.
+
 The key weakness: $P_k$ is only a **first-order approximation**. If $h$ is strongly nonlinear over the uncertainty region, $H_k$ evaluated at a wrong $\hat x_{k|k-1}$ gives a wrong gain and a $P_k$ that is too small.
 
 At $t = 1$ the prior position uncertainty is $\pm 10\,\text{m}$ (one sigma) at a range of only $\approx 20\,\text{m}$. Over that interval $\operatorname{atan2}$ is far from linear, since $|H|$ varies by more than a factor of 2. So the very first update is where the EKF goes wrong.
@@ -131,15 +136,67 @@ At $t = 1$ the prior position uncertainty is $\pm 10\,\text{m}$ (one sigma) at a
 
 ## 4. Bayesian (posterior) Cramér–Rao bound
 
-### 4.1 The inequality
+### 4.1 What is $J_k$?
 
-For **any** estimator $\hat x_k$ built from $y_{1:k}$, under the model used to compute it,
+$J_k$ is the **Bayesian Fisher information matrix** of the state $x_k$, given the prior on $x_0$, the dynamics, and the measurements $y_1, \dots, y_k$.
+It is a symmetric positive definite $2\times2$ matrix that measures **how much the model and the data tell us about $x_k$**:
 
 $$
-\mathbb E\big[(\hat x_k - x_k)(\hat x_k - x_k)^\top\big] \;\succeq\; J_k^{-1},
+J_k = \begin{pmatrix} J_{k,ss} & J_{k,sv} \\ J_{k,sv} & J_{k,vv} \end{pmatrix},
+\qquad
+[J_{k,ss}] = \text{m}^{-2},\quad [J_{k,vv}] = \text{s}^2\,\text{m}^{-2},\quad [J_{k,sv}] = \text{s}\,\text{m}^{-2}.
 $$
 
-where the expectation is over **both** the noise and the random state. In particular, each diagonal term satisfies $\text{MSE}_{k,i} \ge (J_k^{-1})_{ii}$.
+Its inverse $J_k^{-1}$ has the units of a covariance matrix. **$J_k^{-1}$ is the BCR**, the green curves.
+
+**Intuition: information adds up, variances don't.** Take a scalar $s$ with prior variance $\sigma_0^2$ and one measurement $y = s + \nu$ with $\operatorname{Var}\nu = \sigma^2$. The posterior variance is
+
+$$
+\sigma_{\text{post}}^2 = \Big(\frac{1}{\sigma_0^2} + \frac{1}{\sigma^2}\Big)^{-1}.
+$$
+
+In information terms, (information after) = (information before) + (information of the measurement), with information = 1/variance. $J_k$ is the matrix version of this, built step by step:
+
+- the dynamics **move** the information and **lose** some of it through $Q$;
+- each measurement **adds** $\mathbb E[H^\top R^{-1} H]$.
+
+**Formal definition.** Stack the whole trajectory $X_{0:k} = (x_0, \dots, x_k)$ and the measurements $Y_{1:k}$. The information matrix of the trajectory is
+
+$$
+\mathcal J(X_{0:k}) = \mathbb E\Big[-\nabla_{X_{0:k}} \nabla_{X_{0:k}}^\top \log p(X_{0:k}, Y_{1:k})\Big] \qquad \text{(size } 2(k+1) \times 2(k+1)\text{)}.
+$$
+
+$J_k^{-1}$ is defined as the **bottom-right $2\times2$ block of $\mathcal J(X_{0:k})^{-1}$**, the block for $x_k$. Inverting a $2(k+1)\times2(k+1)$ matrix at every step would be costly. Appendix A.4 shows that this block obeys the cheap $2\times2$ recursion of §4.2.
+
+**Worked example at $t = 1$.** Take $Q = 0$ and evaluate $H$ at the mean $s_1 \approx 5$, so $|H| \approx 0.047$:
+
+$$
+J_0 = P_0^{-1} = \begin{pmatrix} 0.01 & 0 \\ 0 & 1 \end{pmatrix},
+\quad
+F P_0 F^\top = \begin{pmatrix} 101 & 1 \\ 1 & 1 \end{pmatrix},
+\quad
+(F P_0 F^\top)^{-1} = \frac{1}{100}\begin{pmatrix} 1 & -1 \\ -1 & 101 \end{pmatrix},
+$$
+
+$$
+\frac{H^2}{R} = \frac{0.047^2}{0.01745^2} \approx 7.3
+\;\Rightarrow\;
+J_1 \approx \begin{pmatrix} 7.31 & -0.01 \\ -0.01 & 1.01 \end{pmatrix},
+\quad
+(J_1^{-1})_{ss} \approx 0.137\ \text{m}^2,
+\quad
+3\sqrt{0.137} \approx 1.1\ \text{m}.
+$$
+
+The plot shows $\approx 1.2\,\text{m}$. The small difference is because the code averages $H$ over the spread of $s_1$ instead of using the mean. Velocity is unchanged ($\approx 1\,\text{m/s}$, so 3σ ≈ 3) because one bearing says nothing about $v$. That is the flat start of the velocity curves.
+
+**The inequality.** For **any** estimator $\hat x_k$ built from $y_{1:k}$, biased or not, under the model used to compute $J_k$ (proof in A.3),
+
+$$
+\mathbb E\big[(\hat x_k - x_k)(\hat x_k - x_k)^\top\big] \;\succeq\; J_k^{-1}.
+$$
+
+The expectation is over **both** the noise and the random state. "$A \succeq B$" means $A - B$ is positive semidefinite (A.1). In particular, each diagonal term satisfies $\text{MSE}_{k,i} \ge (J_k^{-1})_{ii}$.
 
 ### 4.2 Recursion (Tichavský et al.)
 
@@ -151,6 +208,8 @@ J_{k+1} = \big(F J_k^{-1} F^\top + Q\big)^{-1} \;+\; \mathbb E_{x_{k+1}}\!\big[H
 \qquad J_0 = P_0^{-1}
 \;}
 $$
+
+Proof: Appendix A.4. The measurement term is derived in A.3.
 
 - The first term is the **prediction**: information is propagated by $F$ and diluted by $Q$.
 - The second term is the **measurement information**, averaged over the *unconditional* distribution of $x_{k+1}$. It is estimated by Monte Carlo with $M = 15\,000$ samples propagated through the same dynamics (`information_curve`):
@@ -278,3 +337,293 @@ $$
 4. **Geometry limits everything.** Bearing information decays like $1/r^4$. Velocity is observable only through the change in bearing, and position uncertainty eventually grows with time.
 
 *Monte Carlo precision:* with $N = 500$ runs, the relative standard error on an RMSE is about $1/\sqrt{2N} \approx 3\,\%$. Differences smaller than that (for example 1.17 vs 1.20) are not significant.
+
+---
+
+## Appendix A — Mathematical background and proofs
+
+### A.1 Notation
+
+| Symbol | Meaning |
+|---|---|
+| $x^\top$, $A^\top$ | transpose |
+| $\mathbb E[\cdot]$ | expectation (mean) |
+| $\operatorname{Cov}(x) = \mathbb E\big[(x - \mathbb E x)(x - \mathbb E x)^\top\big]$ | covariance matrix |
+| $\nabla_x f$ | gradient (column vector) of $f$ with respect to $x$ |
+| $\nabla_x \nabla_x^\top f$ | Hessian (matrix of second derivatives) |
+| $y_{1:k}$ | $(y_1, \dots, y_k)$ |
+| $A \succeq B$ | $A - B$ is positive semidefinite: $u^\top (A - B) u \ge 0$ for all $u$ |
+
+**Loewner order.** If $A \succeq B$, choosing $u = e_i$ (the $i$-th basis vector) gives $A_{ii} \ge B_{ii}$. So a matrix inequality on the MSE implies an inequality on **each** component's MSE. That is why the green curves can be compared with the red ones component by component.
+
+**MSE, bias, variance.** For an estimator $\hat x$ of $x$, with error $e = \hat x - x$:
+
+$$
+\text{MSE} = \mathbb E[e e^\top] = \operatorname{Cov}(e) + \mathbb E[e]\,\mathbb E[e]^\top
+\qquad(\text{variance} + \text{bias}^2).
+$$
+
+RMSE is the square root of a diagonal element of the MSE.
+
+**Why 3σ.** For a Gaussian error, $\Pr(|e| \le 3\sigma) \approx 99.7\,\%$. Plotting $3\sigma$ curves shows the envelope that almost all errors should stay within.
+
+### A.2 Gaussian identities
+
+**Density.** $x \sim \mathcal N(m, P)$ in dimension $n$ means
+
+$$
+p(x) = \frac{1}{\sqrt{(2\pi)^n \det P}} \exp\!\Big(-\tfrac12 (x - m)^\top P^{-1} (x - m)\Big),
+\qquad
+-\nabla_x \nabla_x^\top \log p(x) = P^{-1}.
+$$
+
+So for a Gaussian, **information = inverse covariance**, and the prior information is $J_0 = P_0^{-1}$.
+
+**Linear transformation.** If $\operatorname{Cov}(x) = P$ and $w \sim \mathcal N(0, Q)$ is independent of $x$, then
+
+$$
+\operatorname{Cov}(Fx + w) = F P F^\top + Q .
+$$
+
+Proof: $\mathbb E\big[(F(x - m) + w)(F(x - m) + w)^\top\big] = F P F^\top + Q$, because the cross terms have zero mean.
+
+**Conditioning.** If $\begin{pmatrix} x \\ y \end{pmatrix}$ is jointly Gaussian with blocks $\Sigma_{xx}, \Sigma_{xy}, \Sigma_{yy}$, then
+
+$$
+\mathbb E[x \mid y] = m_x + \Sigma_{xy} \Sigma_{yy}^{-1} (y - m_y),
+\qquad
+\operatorname{Cov}(x \mid y) = \Sigma_{xx} - \Sigma_{xy} \Sigma_{yy}^{-1} \Sigma_{yx}.
+$$
+
+**Schur complement: marginalising in information form.** Let $\Sigma$ be a covariance and $\Lambda = \Sigma^{-1}$ its information matrix, split in blocks:
+
+$$
+\Lambda = \begin{pmatrix} A & B \\ B^\top & C \end{pmatrix}
+\quad\Longrightarrow\quad
+(\Sigma_{22})^{-1} = C - B^\top A^{-1} B .
+$$
+
+In words: to get the information on the second variable alone, take its own block $C$ and subtract what was "explained by" the first variable, $B^\top A^{-1} B$. This is the block-inverse formula, checked by multiplying $\Lambda$ by the block form of $\Sigma$.
+
+**Matrix inversion lemma (Woodbury).** For invertible $A$ and $C$:
+
+$$
+(A + U C V)^{-1} = A^{-1} - A^{-1} U \big(C^{-1} + V A^{-1} U\big)^{-1} V A^{-1}.
+$$
+
+Proof: multiply the right-hand side by $A + UCV$ and simplify to $I$.
+
+### A.3 Fisher information and the Cramér–Rao bounds
+
+**Classical (non-random parameter $\theta$).** The *score* is $\nabla_\theta \log p(y; \theta)$. The Fisher information is
+
+$$
+I(\theta) = \mathbb E\big[\nabla_\theta \log p \,(\nabla_\theta \log p)^\top\big] = -\mathbb E\big[\nabla_\theta \nabla_\theta^\top \log p\big].
+$$
+
+The two forms are equal because differentiating $\int p\,dy = 1$ twice gives $\mathbb E[\nabla \nabla^\top \log p] + \mathbb E[\nabla \log p\, \nabla^\top \log p] = 0$.
+For any **unbiased** $\hat\theta$, $\operatorname{Cov}(\hat\theta) \succeq I(\theta)^{-1}$. This classical bound depends on the unknown true $\theta$ and requires unbiasedness. For tracking we use the Bayesian version instead.
+
+**Bayesian Cramér–Rao bound (Van Trees).** Now $x$ is random with a prior. Define
+
+$$
+J = \mathbb E_{x,y}\big[-\nabla_x \nabla_x^\top \log p(x, y)\big]
+= \underbrace{\mathbb E\big[-\nabla_x \nabla_x^\top \log p(y \mid x)\big]}_{J_D\ \text{(data)}}
++ \underbrace{\mathbb E\big[-\nabla_x \nabla_x^\top \log p(x)\big]}_{J_P\ \text{(prior)}},
+$$
+
+using $\log p(x, y) = \log p(y \mid x) + \log p(x)$. Then, for **any** estimator $\hat x(y)$, with no unbiasedness needed,
+
+$$
+\mathbb E\big[(\hat x - x)(\hat x - x)^\top\big] \succeq J^{-1}.
+$$
+
+*Proof (scalar case; the matrix case is identical with vectors).* Integration by parts in $x$, assuming $p(x, y) \to 0$ at the edges of the support (true for a Gaussian prior), gives
+
+$$
+\mathbb E\Big[(\hat x - x)\,\partial_x \log p(x, y)\Big]
+= \iint (\hat x(y) - x)\, \partial_x p(x, y)\, dx\, dy
+= \iint p(x, y)\, dx\, dy = 1 .
+$$
+
+The term $\hat x(y)$ disappears because it does not depend on $x$. By Cauchy–Schwarz,
+
+$$
+1 \le \mathbb E\big[(\hat x - x)^2\big]\; \mathbb E\big[(\partial_x \log p)^2\big] = \text{MSE} \cdot J
+\;\Rightarrow\; \text{MSE} \ge 1/J . \qquad\blacksquare
+$$
+
+**Information of a Gaussian measurement $y = h(x) + \nu$, $\nu \sim \mathcal N(0, R)$.** Up to a constant,
+
+$$
+\ell(x) = \log p(y \mid x) = -\tfrac12 \big(y - h(x)\big)^\top R^{-1} \big(y - h(x)\big),
+\qquad
+\nabla_x \ell = H(x)^\top R^{-1} \big(y - h(x)\big).
+$$
+
+Differentiating once more gives $-H^\top R^{-1} H$ plus terms that contain second derivatives of $h$ multiplied by $y - h(x) = \nu$. Those terms have zero mean, so
+
+$$
+\boxed{\;J_D = \mathbb E_x\big[H(x)^\top R^{-1} H(x)\big]\;}
+$$
+
+This is the measurement term of the recursion. For a **linear** measurement, $H$ is constant and $J_D = H^\top R^{-1} H$.
+
+### A.4 Derivation of the $J_k$ recursion
+
+The model is Markov, so the joint density factorises:
+
+$$
+\log p(X_{0:k+1}, Y_{1:k+1}) = \log p(X_{0:k}, Y_{1:k}) + \log p(x_{k+1} \mid x_k) + \log p(y_{k+1} \mid x_{k+1}).
+$$
+
+Define the expected negative Hessians
+
+$$
+D_{11} = \mathbb E\big[-\nabla_{x_k} \nabla_{x_k}^\top \log p(x_{k+1} \mid x_k)\big],\quad
+D_{12} = \mathbb E\big[-\nabla_{x_k} \nabla_{x_{k+1}}^\top \log p(x_{k+1} \mid x_k)\big] = D_{21}^\top,
+$$
+
+$$
+D_{22} = \mathbb E\big[-\nabla_{x_{k+1}} \nabla_{x_{k+1}}^\top \log p(x_{k+1} \mid x_k)\big] + \mathbb E\big[-\nabla_{x_{k+1}} \nabla_{x_{k+1}}^\top \log p(y_{k+1} \mid x_{k+1})\big].
+$$
+
+**Step 1: marginalise the past.** By induction, after eliminating $x_0, \dots, x_{k-1}$ with Schur complements (A.2), the information left on $x_k$ is $J_k$. The new factors only involve $x_k$ and $x_{k+1}$, so the information matrix of $(x_k, x_{k+1})$ is
+
+$$
+\begin{pmatrix} J_k + D_{11} & D_{12} \\ D_{21} & D_{22} \end{pmatrix}.
+$$
+
+**Step 2: marginalise $x_k$** with the Schur complement:
+
+$$
+\boxed{\;J_{k+1} = D_{22} - D_{21} \big(J_k + D_{11}\big)^{-1} D_{12}\;}
+\qquad(\text{Tichavský, Muravchik, Nehorai, 1998}).
+$$
+
+**Step 3: specialise to linear Gaussian dynamics.** With $\log p(x_{k+1} \mid x_k) = -\tfrac12 (x_{k+1} - F x_k)^\top Q^{-1} (x_{k+1} - F x_k) + \text{const}$:
+
+$$
+\nabla_{x_k} \log p = F^\top Q^{-1} (x_{k+1} - F x_k)
+\;\Rightarrow\;
+D_{11} = F^\top Q^{-1} F,\quad
+D_{12} = -F^\top Q^{-1},\quad
+D_{22} = Q^{-1} + \mathbb E[H^\top R^{-1} H].
+$$
+
+Substituting:
+
+$$
+J_{k+1} = Q^{-1} - Q^{-1} F \big(J_k + F^\top Q^{-1} F\big)^{-1} F^\top Q^{-1} + \mathbb E[H^\top R^{-1} H].
+$$
+
+**Step 4: simplify with Woodbury** ($A = Q$, $U = F$, $C = J_k^{-1}$, $V = F^\top$). The first two terms are exactly $(Q + F J_k^{-1} F^\top)^{-1}$, so
+
+$$
+J_{k+1} = \big(F J_k^{-1} F^\top + Q\big)^{-1} + \mathbb E_{x_{k+1}}\big[H(x_{k+1})^\top R^{-1} H(x_{k+1})\big]. \qquad\blacksquare
+$$
+
+Read in covariance terms: $F J_k^{-1} F^\top + Q$ is the **predicted bound** (A.2, linear transformation). Its inverse is the predicted information, and the measurement adds its information on top.
+
+**Case $Q = 0$.** $Q^{-1}$ does not exist, but the final formula is still valid as a limit: $(F J_k^{-1} F^\top)^{-1} = F^{-\top} J_k F^{-1}$, with
+
+$$
+F^{-1} = \begin{pmatrix} 1 & -\Delta t \\ 0 & 1 \end{pmatrix},
+\qquad
+F^k = \begin{pmatrix} 1 & k\Delta t \\ 0 & 1 \end{pmatrix}.
+$$
+
+The code computes $P_{\text{pred}} = F J^{-1} F^\top + Q$ and inverts it, which works for both cases.
+
+### A.5 Kalman filter, EKF, and their link with the bound
+
+**Kalman filter (linear $h(x) = Hx$).** Before the update, $x_k \mid y_{1:k-1} \sim \mathcal N(\hat x^-, P^-)$ and $y_k = H x_k + \nu_k$. Then $(x_k, y_k)$ is jointly Gaussian with
+
+$$
+\Sigma_{xy} = P^- H^\top, \qquad \Sigma_{yy} = H P^- H^\top + R = S .
+$$
+
+Conditioning (A.2) gives the update with gain $K = P^- H^\top S^{-1}$:
+
+$$
+\hat x = \hat x^- + K (y_k - H \hat x^-), \qquad P = P^- - K S K^\top = (I - KH) P^- .
+$$
+
+The prediction step is the linear transformation of A.2: $P^- = F P F^\top + Q$.
+
+**Joseph form.** $(I - KH) P^- (I - KH)^\top + K R K^\top$ is equal to $(I - KH)P^-$ when $K$ is the optimal gain. It stays symmetric positive semidefinite even with rounding errors, which is why `ekf.py` uses it.
+
+**Information form, and why the KF reaches the bound.** By Woodbury,
+
+$$
+(I - KH) P^- = P^- - P^- H^\top (H P^- H^\top + R)^{-1} H P^- = \big((P^-)^{-1} + H^\top R^{-1} H\big)^{-1},
+$$
+
+so
+
+$$
+P_k^{-1} = \big(F P_{k-1} F^\top + Q\big)^{-1} + H^\top R^{-1} H .
+$$
+
+This is **exactly the $J_k$ recursion** with $P_k = J_k^{-1}$. In the linear Gaussian case, the Kalman filter is the conditional mean $\mathbb E[x_k \mid y_{1:k}]$ (the optimal MMSE estimator), and its covariance **equals** the BCR. It is efficient.
+
+**EKF (nonlinear $h$).** Linearise around the prediction:
+
+$$
+h(x) \approx h(\hat x^-) + H(\hat x^-)\,(x - \hat x^-),
+$$
+
+then apply the KF formulas. This differs from the bound in two ways:
+
+1. The EKF uses $H(\hat x^-)$, evaluated at an **estimate**, while the bound averages $H(x)$ over **true** states.
+2. The linearisation drops the curvature of $h$. When $P^-$ is large compared to the scale over which $H$ changes, which is the case here at $t = 1$, $P_k$ no longer represents the real error.
+
+So the EKF has no optimality guarantee, and $P_k^{\text{EKF}} \ne J_k^{-1}$ in general. The gap between the red and green curves measures how much the EKF loses.
+
+### A.6 Jacobian of the bearing
+
+With $a = -y_s$ (constant) and $b = s - x_s$, for $b > 0$, $\theta = \arctan(a/b)$, and
+
+$$
+\frac{\partial\theta}{\partial b} = \frac{1}{1 + a^2/b^2} \cdot \Big(-\frac{a}{b^2}\Big) = -\frac{a}{a^2 + b^2} = \frac{y_s}{(s - x_s)^2 + y_s^2} .
+$$
+
+`atan2` gives the same derivative for every $b$, because it only differs from $\arctan(a/b)$ by constants $\pm\pi$. Since $\partial b / \partial s = 1$ and $\theta$ does not depend on $v$, $H = \big(y_s/r^2,\; 0\big)$. Numerically, $1^\circ = 0.01745\,\text{rad}$, so $R = 3.05 \times 10^{-4}\,\text{rad}^2$.
+
+### A.7 Integrated random walk (process noise only)
+
+Keep only the velocity noise $w_{v,i}$, with variance $Q_{vv}$ per step. Then
+
+$$
+v_k = v_0 + \sum_{i=0}^{k-1} w_{v,i},
+\qquad
+s_k = s_0 + k\Delta t\, v_0 + \Delta t \sum_{i=0}^{k-1} (k - 1 - i)\, w_{v,i}.
+$$
+
+The noise $w_{v,i}$ enters $s_k$ with weight $\Delta t\,(k - 1 - i)$, because it affects every later velocity. The noise-driven parts therefore have
+
+$$
+\operatorname{Var}(v_k) = k\, Q_{vv},
+\qquad
+\operatorname{Cov}(s_k, v_k) = \Delta t\, Q_{vv} \sum_{m=0}^{k-1} m = \Delta t\, Q_{vv}\, \frac{k(k-1)}{2},
+\qquad
+\operatorname{Var}(s_k) = \Delta t^2\, Q_{vv} \sum_{m=0}^{k-1} m^2 = \Delta t^2\, Q_{vv}\, \frac{(k-1)k(2k-1)}{6}.
+$$
+
+For large $k$, with $t = k\Delta t$ and $q = Q_{vv}/\Delta t$, these become $q t$, $\tfrac12 q t^2$ and $\tfrac13 q t^3$, as used in §4.4. The correlation tends to $\sqrt3/2$.
+
+With $Q = 0$, only the $v_0$ term is left: $e_{s,k} = e_{s,0} + k\Delta t\, e_{v,0}$ once no more information arrives. That gives the linear growth and the correlation → 1 of §4.3.
+
+### A.8 Monte Carlo estimators and their precision
+
+**EKF curves.** These are averages over $N = 500$ independent runs:
+
+$$
+\widehat{\text{MSE}}_{k,i} = \frac1N \sum_{j=1}^N \big(e_{k,i}^{(j)}\big)^2,
+\qquad
+\overline{P}_{k,ii} = \frac1N \sum_{j=1}^N P_{k,ii}^{(j)} .
+$$
+
+If $e \sim \mathcal N(0, \sigma^2)$, then $\operatorname{Var}\big(\widehat{\text{MSE}}\big) = 2\sigma^4/N$. By the delta method, $\operatorname{sd}\big(\sqrt{\widehat{\text{MSE}}}\big) \approx \sigma / \sqrt{2N}$, so the relative error is about $1/\sqrt{1000} \approx 3\,\%$.
+
+**Bound.** $\mathbb E[H^\top R^{-1} H]$ is averaged over $M = 15\,000$ samples of $x_k$ drawn from the model (`information_curve`). Its relative error is $O(1/\sqrt M) \approx 1\,\%$. The samples come from the **prior/marginal** distribution of $x_k$, not from the filter's posterior. The bound is an average over all possible trajectories, independent of any particular filter.
