@@ -48,7 +48,76 @@ La partie~2 traite d'une dynamique bruitée et compare la BCR aux performances r
 
 \subsection{Question Q0 : information de Fisher pour des bruits additifs gaussiens}
 
-\textit{À compléter.}
+On considère un paramètre déterministe $\theta \in \mathbb{R}^d$ observé à travers $n$ mesures
+\begin{equation}
+y_i = h_i(\theta) + \epsilon_i, \qquad \epsilon_i \sim \N(0, \sigma_i^2), \qquad i = 1, \dots, n,
+\end{equation}
+où les bruits $\epsilon_i$ sont supposés indépendants et les fonctions $h_i : \mathbb{R}^d \to \mathbb{R}$ différentiables. On note $\dfrac{\partial h_i}{\partial \theta}(\theta) \in \mathbb{R}^{1\times d}$ la jacobienne (vecteur ligne) de $h_i$. On veut montrer que
+\begin{equation}
+\boxed{\;
+J(\theta) = \sum_{i=1}^{n} \frac{1}{\sigma_i^2}
+\left(\frac{\partial h_i}{\partial \theta}(\theta)\right)^{\!\top}
+\frac{\partial h_i}{\partial \theta}(\theta).
+\;}
+\label{eq:q0}
+\end{equation}
+
+\paragraph{Log-vraisemblance.}
+Par indépendance des bruits, la densité des observations se factorise :
+\begin{equation}
+p(y_{1:n} \mid \theta) = \prod_{i=1}^{n} \frac{1}{\sqrt{2\pi}\,\sigma_i}
+\exp\!\left(-\frac{\big(y_i - h_i(\theta)\big)^2}{2\sigma_i^2}\right),
+\end{equation}
+d'où
+\begin{equation}
+\ln p(y_{1:n} \mid \theta) = -\sum_{i=1}^{n} \frac{\big(y_i - h_i(\theta)\big)^2}{2\sigma_i^2} + c,
+\end{equation}
+où la constante $c$ ne dépend pas de $\theta$.
+
+\paragraph{Score.}
+En dérivant par rapport à $\theta$, on obtient le score :
+\begin{equation}
+\nabla_\theta \ln p(y_{1:n} \mid \theta)
+= \sum_{i=1}^{n} \frac{y_i - h_i(\theta)}{\sigma_i^2} \left(\frac{\partial h_i}{\partial \theta}(\theta)\right)^{\!\top}
+= \sum_{i=1}^{n} \frac{\epsilon_i}{\sigma_i^2}\, g_i,
+\qquad g_i \triangleq \left(\frac{\partial h_i}{\partial \theta}(\theta)\right)^{\!\top} \in \mathbb{R}^d.
+\end{equation}
+On vérifie au passage que le score est centré, puisque $\E[\epsilon_i] = 0$.
+
+\paragraph{Information de Fisher.}
+Par définition, $J(\theta) = \E_{Y\mid\theta}\big[\nabla_\theta \ln p \,(\nabla_\theta \ln p)^\top\big]$. Les vecteurs $g_i$ sont déterministes (ils ne dépendent que de $\theta$), donc
+\begin{equation}
+J(\theta) = \sum_{i=1}^{n} \sum_{j=1}^{n} \frac{\E[\epsilon_i \epsilon_j]}{\sigma_i^2 \sigma_j^2}\, g_i\, g_j^\top .
+\end{equation}
+Par indépendance et centrage des bruits, $\E[\epsilon_i \epsilon_j] = \sigma_i^2\, \delta_{ij}$. Seuls les termes $i = j$ subsistent :
+\begin{equation}
+J(\theta) = \sum_{i=1}^{n} \frac{\sigma_i^2}{\sigma_i^4}\, g_i\, g_i^\top
+= \sum_{i=1}^{n} \frac{1}{\sigma_i^2}
+\left(\frac{\partial h_i}{\partial \theta}(\theta)\right)^{\!\top}
+\frac{\partial h_i}{\partial \theta}(\theta),
+\end{equation}
+ce qui établit~\eqref{eq:q0}. \hfill$\blacksquare$
+
+\paragraph{Vérification par la hessienne.}
+On retrouve le même résultat avec la seconde forme $J(\theta) = -\E\big[\nabla_\theta \nabla_\theta^\top \ln p\big]$. En dérivant le score une seconde fois :
+\begin{equation}
+-\nabla_\theta \nabla_\theta^\top \ln p(y_{1:n} \mid \theta)
+= \sum_{i=1}^{n} \frac{1}{\sigma_i^2} \Big( g_i\, g_i^\top - \epsilon_i\, \nabla_\theta^2 h_i(\theta) \Big).
+\end{equation}
+Le second terme, qui fait intervenir la courbure de $h_i$, est d'espérance nulle car $\E[\epsilon_i] = 0$. Il reste bien~\eqref{eq:q0}.
+
+\paragraph{Écriture matricielle et interprétation.}
+En empilant les jacobiennes dans $H(\theta) \in \mathbb{R}^{n\times d}$, de lignes $\frac{\partial h_i}{\partial \theta}(\theta)$, et en posant $R = \diag(\sigma_1^2, \dots, \sigma_n^2)$, on obtient la forme compacte
+\begin{equation}
+J(\theta) = H(\theta)^\top R^{-1} H(\theta).
+\end{equation}
+Plusieurs remarques en découlent :
+\begin{itemize}[nosep]
+  \item \textbf{Additivité.} Chaque mesure indépendante ajoute sa propre contribution $g_i g_i^\top / \sigma_i^2$, qui est de rang~1. Une mesure précise ($\sigma_i$ petit) ou très sensible au paramètre ($\|g_i\|$ grand) apporte beaucoup d'information.
+  \item \textbf{Observabilité.} Si les gradients $g_1, \dots, g_n$ n'engendrent pas $\mathbb{R}^d$, $J(\theta)$ est singulière et la BCR n'est pas définie : certaines directions de $\theta$ ne sont pas identifiables. C'est exactement le cas $\varphi = 0$ étudié en Q1.
+  \item \textbf{Cas linéaire.} Si $h(\theta) = A\theta$, alors $J = A^\top R^{-1} A$ ne dépend plus de $\theta$, et l'estimateur des moindres carrés pondérés $\hat\theta = (A^\top R^{-1} A)^{-1} A^\top R^{-1} y$ est non biaisé de covariance $J^{-1}$ : il atteint la borne.
+  \item \textbf{Lien avec la suite du TP.} Ce résultat fournit le terme de mesure $\frac{1}{\sigma_k^2} H_k^\top H_k$ des récursions~\eqref{eq:bcr_det} et~\eqref{eq:pcrb}, où $H_k = \frac{\partial h_k}{\partial X_k}(X_k)$ est la jacobienne (ligne) de la mesure angulaire.
+\end{itemize}
 
 \subsection{Question Q1a : calcul de la BCR (dynamique linéaire non bruitée)}
 
