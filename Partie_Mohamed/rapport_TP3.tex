@@ -13,6 +13,8 @@
 \usepackage{enumitem}
 \usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
 
+\graphicspath{{figures/}}
+
 \newcommand{\E}{\mathbb{E}}
 \newcommand{\N}{\mathcal{N}}
 \newcommand{\BCR}{\mathrm{BCR}}
@@ -50,11 +52,142 @@ La partie~2 traite d'une dynamique bruitée et compare la BCR aux performances r
 
 \subsection{Question Q1a : calcul de la BCR (dynamique linéaire non bruitée)}
 
-\textit{À compléter.}
+L'objectif de cette question est d'implémenter le calcul récursif de la borne de Cramér-Rao dans le cas d'une dynamique linéaire non bruitée et de mesures gaussiennes. On considère une cible dont l'état à l'instant $k$ est
+\begin{equation}
+X_k = \begin{pmatrix} x_k & y_k & \dot{x}_k & \dot{y}_k \end{pmatrix}^{\top},
+\end{equation}
+de dynamique linéaire et déterministe
+\begin{equation}
+X_k = \Phi X_{k-1}, \qquad
+\Phi = \begin{pmatrix}
+1 & 0 & T & 0\\
+0 & 1 & 0 & T\\
+0 & 0 & 1 & 0\\
+0 & 0 & 0 & 1
+\end{pmatrix},
+\end{equation}
+où $T$ est le pas de temps entre deux mesures. La mesure est un azimut bruité,
+\begin{equation}
+Y_k = h_k(X_k) + \epsilon_k, \qquad
+h_k(X_k) = \atantwo\big(y_k - y_k^o,\; x_k - x_k^o\big), \qquad
+\epsilon_k \sim \N(0, \sigma_k^2),
+\end{equation}
+où $(x_k^o, y_k^o)$ sont les coordonnées de l'observateur.
+
+\paragraph{Récursion.}
+La matrice d'information initiale est $J_0 = P_0^{-1}$, où $P_0$ est la covariance initiale de l'état. Pour une dynamique non bruitée, la propagation de l'information et l'ajout de la nouvelle mesure s'écrivent :
+\begin{equation}
+\boxed{\;
+J_k = \Phi^{-\top} J_{k-1} \Phi^{-1} + \frac{1}{\sigma_k^2} H_k^\top H_k,
+\qquad \BCR_k = J_k^{-1},
+\;}
+\label{eq:bcr_det}
+\end{equation}
+où $H_k = \nabla_{X_k} h_k(X_k)$ est le gradient de la fonction de mesure.
+
+\paragraph{Jacobienne de la mesure.}
+En posant $\Delta x_k = x_k - x_k^o$ et $\Delta y_k = y_k - y_k^o$, on obtient :
+\begin{equation}
+H_k = \begin{pmatrix}
+-\dfrac{\Delta y_k}{\Delta x_k^2 + \Delta y_k^2} &
+\dfrac{\Delta x_k}{\Delta x_k^2 + \Delta y_k^2} &
+0 & 0
+\end{pmatrix}.
+\end{equation}
+Les deux dernières composantes sont nulles, car la mesure angulaire ne dépend pas directement des vitesses de la cible.
+
+\paragraph{Implémentation.}
+Le calcul est réalisé dans \texttt{cramer\_rao\_deterministe.py}. La méthode \texttt{predict(F)} propage l'information, $J_k^{\mathrm{pred}} = F^{-\top} J_{k-1} F^{-1}$, et la méthode \texttt{update(H,R)} ajoute l'information de mesure, $J_k = J_k^{\mathrm{pred}} + H^\top R^{-1} H$. La borne est ensuite obtenue par inversion de $J_k$, ce qui permet de suivre l'évolution de la précision théorique au cours du temps.
+
+\paragraph{Cas particulier $\varphi = 0$ sans information a priori.}
+Lorsque l'observateur ne manœuvre pas ($\varphi = 0$), il suit une trajectoire rectiligne à vitesse constante. Pour étudier l'observabilité du système sans information a priori, on initialise $J_0 = 0_{4\times4}$, puis on applique la récursion~\eqref{eq:bcr_det}. Les valeurs singulières de la matrice d'information finale sont
+\begin{equation}
+s(J_n) = \begin{pmatrix} 147{,}4345 & 0{,}06849 & 0{,}005350 & 2{,}37\times10^{-16} \end{pmatrix}^{\top}.
+\end{equation}
+La dernière valeur singulière étant pratiquement nulle, on obtient
+\begin{equation}
+\boxed{\;\operatorname{rang}(J_n) = 3 < 4.\;}
+\end{equation}
+La matrice d'information finale est donc singulière, et $J_n^{-1}$ n'existe pas : la BCR complète n'est pas définie. Cette perte de rang traduit la non-observabilité du système. Lorsque l'observateur suit une trajectoire rectiligne à vitesse constante, plusieurs trajectoires de l'émetteur produisent les mêmes mesures angulaires : il existe une direction de l'espace d'état dans laquelle les mesures n'apportent aucune information. Ce résultat met en évidence l'importance de la manœuvre de l'observateur.
 
 \subsection{Question Q1b : optimisation de l'angle de manœuvre}
 
-\textit{À compléter.}
+On cherche le cap que doit adopter l'observateur après sa manœuvre pour minimiser l'incertitude finale sur la position de la cible. La cible se déplace à vitesse constante, sans bruit de dynamique. L'observateur se déplace initialement selon l'axe $+x$ et change instantanément de cap au milieu de la séquence de mesures. Les paramètres de la simulation sont donnés dans le tableau~\ref{tab:q1_param}.
+
+\begin{table}[ht]
+\centering
+\caption{Paramètres du scénario de la question Q1b.}
+\label{tab:q1_param}
+\begin{tabular}{ll}
+\toprule
+Paramètre & Valeur \\
+\midrule
+Pas temporel & $T = 1$\,s \\
+Nombre de mesures & $N = 100$ \\
+Écart-type du bruit angulaire & $\sigma_\theta = 1^\circ$ \\
+Vitesse de l'observateur & $V_o = 10$\,m/s \\
+Vitesse de la cible & $V_c = 5$\,m/s \\
+Cap initial de la cible & $-20^\circ$ \\
+Position initiale de la cible & $(2000, 2000)$\,m \\
+Covariance initiale & $P_0 = \diag(1000^2, 1000^2, 10^2, 10^2)$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Pour chaque valeur du cap $\varphi$ adopté après la manœuvre, on construit la trajectoire nominale de l'observateur, puis on calcule récursivement la matrice d'information. Le critère à minimiser est la somme des bornes de variance sur les deux coordonnées de position à l'instant final $n$ :
+\begin{equation}
+\boxed{\;
+C(\varphi) = \operatorname{tr}\big(\BCR_n(\varphi)_{1:2,\,1:2}\big) = \BCR_{xx}(\varphi) + \BCR_{yy}(\varphi),
+\qquad
+\varphi_{\mathrm{opt}} = \arg\min_{\varphi \in [0, 360[} C(\varphi).
+\;}
+\end{equation}
+La racine carrée de ce critère, $\mathrm{RMS}_{2D}(\varphi) = \sqrt{C(\varphi)}$, fournit une mesure globale de l'incertitude de position en mètres.
+
+Le programme \texttt{q1\_manoeuvre.py} réalise cette recherche par balayage d'une grille d'angles, dont le pas est fixé par l'option \texttt{--step-deg}. Une première exécution a été effectuée avec un pas de $0{,}1^\circ$, puis une seconde avec un pas de $0{,}01^\circ$ pour vérifier la stabilité du résultat.
+
+\paragraph{Résultats.}
+Avec un pas de $0{,}1^\circ$, on obtient un angle optimal de $115^\circ$, pour un critère minimal de $13\,349{,}589$\,m$^2$. Avec un pas de $0{,}01^\circ$, l'angle optimal est de $114{,}9^\circ$, pour un critère minimal de $13\,349{,}546$\,m$^2$. Les deux résultats étant très proches, l'optimum est numériquement stable. On retient :
+\begin{equation}
+\boxed{\;
+\varphi_{\mathrm{opt}} = 114{,}9^\circ,
+\qquad
+C_{\min} = 13\,349{,}546\ \text{m}^2,
+\qquad
+\mathrm{RMS}_{2D,\min} = 115{,}540\ \text{m}.
+\;}
+\end{equation}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.65\textwidth]{q1_grille.png}
+\caption{RMS finale de position en fonction de l'angle de manœuvre $\varphi$.}
+\label{fig:q1_grille}
+\end{figure}
+
+La courbe de la figure~\ref{fig:q1_grille} présente un minimum principal autour de $115^\circ$. Une autre zone de minimum apparaît autour de $325^\circ$, mais elle conduit à une incertitude plus importante. Les variations de la courbe montrent que la précision du pistage dépend fortement du cap choisi, c'est-à-dire de la géométrie relative entre l'observateur et la cible.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.5\textwidth]{q1_trajectoires.png}
+\caption{Trajectoires nominales de la cible et de l'observateur pour le cap optimal.}
+\label{fig:q1_trajectoires}
+\end{figure}
+
+La figure~\ref{fig:q1_trajectoires} montre les trajectoires nominales pour l'angle optimal. La cible suit une trajectoire rectiligne à vitesse constante, tandis que l'observateur se déplace selon $+x$, puis change de cap. Ce changement de direction modifie la géométrie d'observation et améliore les conditions de mesure angulaire. Le point de manœuvre est indiqué sur la figure.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{q1_incertitudes.png}
+\caption{Évolution temporelle des écarts-types associés à la BCR locale, pour la position et la vitesse.}
+\label{fig:q1_incertitudes}
+\end{figure}
+
+La figure~\ref{fig:q1_incertitudes} montre l'évolution des écarts-types associés à la borne. Les incertitudes sur la position augmentent légèrement pendant la première partie de la trajectoire : tant que l'observateur conserve son cap initial, les mesures angulaires déterminent mal la position de la cible. Au voisinage de la manœuvre ($t \approx 50$\,s), les incertitudes diminuent fortement, car le changement de cap apporte une information nouvelle sur l'état. Elles continuent ensuite globalement à diminuer jusqu'à la dernière mesure. Les incertitudes sur la vitesse diminuent également au cours du temps, selon la géométrie d'observation.
+
+\subsection{Bilan de la partie 1}
+
+L'étude du cas $\varphi = 0$ sans information a priori met en évidence une perte d'observabilité : la matrice d'information finale est singulière lorsque l'observateur conserve une trajectoire rectiligne. L'optimisation numérique identifie un angle de manœuvre optimal de $114{,}9^\circ$ pour le scénario étudié, avec une RMS finale minimale de $115{,}540$\,m. La manœuvre de l'observateur joue donc un rôle essentiel dans l'observabilité et la précision du pistage, et la BCR permet de comparer les trajectoires possibles avant toute expérience.
 
 % =====================================================================
 \section{Partie 2 --- Dynamique bruitée : BCR et comparaison avec l'EKF}

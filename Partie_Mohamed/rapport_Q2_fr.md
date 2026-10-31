@@ -163,7 +163,7 @@ On évalue deux propriétés :
 
 ### 3.3 Cas A — aucun bruit de dynamique (Q2b-1)
 
-![Cas A](experience_A.png)
+![Cas A](figures/experience_A.png)
 
 - **La BCR se comporte comme attendu pour une dynamique déterministe.** La borne sur la position descend d'abord à 0,4 m, tant que l'objet est proche du capteur. Elle augmente ensuite lentement, car les mesures d'angle apportent de moins en moins d'information. La borne sur la vitesse continue de diminuer : chaque nouvelle mesure affine l'estimation de la vitesse, qui est constante.
 - **L'EKF n'est pas consistant.** Son erreur réelle est 2 à 3 fois plus grande que la covariance qu'il annonce. Il est aussi loin de la borne : environ 3,3 fois pour la position et 3,9 fois pour la vitesse à $k = 30$.
@@ -173,7 +173,7 @@ On évalue deux propriétés :
 
 ### 3.4 Cas B — bruit de dynamique dans la vérité et l'EKF, pas dans la BCR (Q2b-2)
 
-![Cas B](experience_B.png)
+![Cas B](figures/experience_B.png)
 
 - **L'EKF est maintenant consistant :** RMSE ≈ EKF pour les deux composantes ($4{,}58$ contre $4{,}47$ m et $0{,}39$ contre $0{,}40$ m/s à $k = 30$). Avec $Q > 0$, la covariance prédite ne tend pas vers zéro. Le gain reste donc significatif et le filtre continue de se corriger grâce aux nouvelles mesures : l'erreur de linéarisation initiale est oubliée.
 - **La borne est mal spécifiée.** C'est la même courbe que dans le cas A, car elle ignore le bruit de dynamique. Elle est 2,7 fois plus basse que la RMSE en position et 6,2 fois plus basse en vitesse.
@@ -181,7 +181,7 @@ On évalue deux propriétés :
 
 ### 3.5 Cas C — même bruit de dynamique partout (Q2b-3)
 
-![Cas C](experience_C.png)
+![Cas C](figures/experience_C.png)
 
 - **Les trois courbes sont dans l'ordre attendu :** $\text{BCR} \le \text{RMSE} \approx \text{EKF}$.
 - **La borne augmente maintenant avec le temps pour les deux composantes.** Chaque pas ajoute l'incertitude $Q$, tandis que l'information apportée par les mesures d'angle décroît en $1/r^4$. Le bruit de dynamique finit par dominer et la précision atteignable se dégrade.
@@ -190,7 +190,7 @@ On évalue deux propriétés :
 
 ### 3.6 Comparaison des cas B et C
 
-![B et C](comparison_B_C.png)
+![B et C](figures/comparison_B_C.png)
 
 Les deux bornes coïncident pendant les ≈ 5 premières secondes. Pendant cette période, les mesures sont très informatives et peu de bruit de dynamique s'est accumulé. Elles divergent ensuite : à $k = 30$, la borne correcte (C) est 2,1 fois plus grande en position et 5,9 fois plus grande en vitesse que la borne mal spécifiée (B). **Ignorer $Q$ dans la borne surestime fortement la performance atteignable**, en particulier pour la vitesse, qui est la composante directement soumise au bruit.
 

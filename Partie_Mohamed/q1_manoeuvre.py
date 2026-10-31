@@ -8,6 +8,7 @@ cap apres manoeuvre = phi par rapport a l'axe +x, phi en degres.
 La BCR est ici une approximation LOCALE sur la trajectoire nominale.
 """
 import argparse
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from cramer_rao_deterministe import DeterministicDynamicsPCRB
@@ -76,8 +77,9 @@ def main():
     parser.add_argument('--step-deg', type=float, default=1.0)
     parser.add_argument('--n-measures', type=int, default=N_MEASURES)
     parser.add_argument('--manoeuvre-index', type=int, default=None)
-    parser.add_argument('--output-prefix', type=str, default='q1')
+    parser.add_argument('--output-prefix', type=str, default='figures/q1')
     args = parser.parse_args()
+    os.makedirs(os.path.dirname(args.output_prefix) or '.', exist_ok=True)
     if not (args.step_deg > 0):
         parser.error('--step-deg doit etre positif')
     grid = np.arange(0., 360. + 1e-10, args.step_deg)

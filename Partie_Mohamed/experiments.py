@@ -7,6 +7,7 @@ C: Q_true=Q_filter=Q_bound=Q_nonzero
 B/C reuse exactly the same simulated trajectories, measurements and EKF.
 """
 import argparse
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -144,18 +145,19 @@ def main():
     parser.add_argument('--show',action='store_true')
     args=parser.parse_args()
 
+    os.makedirs('figures',exist_ok=True)
     zero=np.zeros_like(Q)
     trueA,yA=simulate(args.runs,args.steps,zero,seed=2026)
     estA,covA=run_ekf(trueA,yA,zero)
     bcrA=information_curve(args.steps,zero,args.mc,seed=2027)
-    plot_experiment('A (modèle idéal)',trueA,estA,covA,bcrA,'experience_A.png')
+    plot_experiment('A (modèle idéal)',trueA,estA,covA,bcrA,'figures/experience_A.png')
 
     trueBC,yBC=simulate(args.runs,args.steps,Q,seed=3030)
     estBC,covBC=run_ekf(trueBC,yBC,Q)
     bcrB=information_curve(args.steps,zero,args.mc,seed=2027)
     bcrC=information_curve(args.steps,Q,args.mc,seed=3031)
-    plot_experiment('B (borne mal spécifiée)',trueBC,estBC,covBC,bcrB,'experience_B.png')
-    plot_experiment('C (modèle cohérent)',trueBC,estBC,covBC,bcrC,'experience_C.png')
+    plot_experiment('B (borne mal spécifiée)',trueBC,estBC,covBC,bcrB,'figures/experience_B.png')
+    plot_experiment('C (modèle cohérent)',trueBC,estBC,covBC,bcrC,'figures/experience_C.png')
 
     fig,axes=plt.subplots(1,2,figsize=(11,4),layout='constrained')
     for i, label in enumerate(('position (m)','vitesse (m/s)')):
@@ -167,12 +169,12 @@ def main():
         axes[i].set(xlabel='temps (s)',ylabel=label,title='Comparaison B et C')
         axes[i].grid(alpha=.25)
         axes[i].legend(fontsize=8)
-    fig.savefig('comparison_B_C.png',dpi=160)
+    fig.savefig('figures/comparison_B_C.png',dpi=160)
     if args.show:
         plt.show()
     else:
         plt.close(fig)
-    print('Figures créées : experience_A.png, experience_B.png, experience_C.png, comparison_B_C.png')
+    print('Figures créées dans figures/ : experience_A.png, experience_B.png, experience_C.png, comparison_B_C.png')
     print('B/C : mêmes trajectoires, mesures et résultats EKF.')
     print('Attention : BCR(B) n’est pas une borne de l’erreur pour le modèle vrai Q>0.')
 

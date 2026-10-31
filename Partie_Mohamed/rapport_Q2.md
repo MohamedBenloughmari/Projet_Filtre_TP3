@@ -163,7 +163,7 @@ Two properties are assessed:
 
 ### 3.3 Case A — no process noise anywhere (Q2b-1)
 
-![Case A](experience_A.png)
+![Case A](figures/experience_A.png)
 
 - **The BCR behaves as expected for deterministic dynamics.** The position bound first drops to 0.4 m, while the object is close to the sensor. It then grows slowly, because the bearings bring less and less information. The velocity bound keeps decreasing, since each new bearing refines the estimate of the velocity, which is constant.
 - **The EKF is not consistent.** Its actual error is 2 to 3 times larger than the covariance it reports. It is also far from the bound: about 3.3× for position and 3.9× for velocity at $k = 30$.
@@ -173,7 +173,7 @@ Two properties are assessed:
 
 ### 3.4 Case B — process noise in the truth and the EKF, not in the BCR (Q2b-2)
 
-![Case B](experience_B.png)
+![Case B](figures/experience_B.png)
 
 - **The EKF is now consistent:** RMSE ≈ EKF for both components ($4.58$ vs $4.47$ m and $0.39$ vs $0.40$ m/s at $k = 30$). With $Q > 0$, the predicted covariance stays away from zero. The gain therefore remains significant, and the filter keeps correcting itself with new measurements: the initial linearisation error is forgotten.
 - **The bound is mis-specified.** It is the same curve as in case A, because it ignores the process noise. It is 2.7× below the RMSE in position and 6.2× below in velocity.
@@ -181,7 +181,7 @@ Two properties are assessed:
 
 ### 3.5 Case C — same process noise everywhere (Q2b-3)
 
-![Case C](experience_C.png)
+![Case C](figures/experience_C.png)
 
 - **The three curves are in the expected order:** $\text{BCR} \le \text{RMSE} \approx \text{EKF}$.
 - **The bound now grows with time for both components.** Each step adds the uncertainty $Q$, while the information from the bearings decreases like $1/r^4$. Process noise ends up dominating, and the achievable accuracy degrades.
@@ -190,7 +190,7 @@ Two properties are assessed:
 
 ### 3.6 Comparison of cases B and C
 
-![B vs C](comparison_B_C.png)
+![B vs C](figures/comparison_B_C.png)
 
 The two bounds coincide for the first ≈ 5 s. During that time the measurements are very informative and little process noise has accumulated. After that they diverge: at $k = 30$, the correct bound (C) is 2.1× larger in position and 5.9× larger in velocity than the mis-specified one (B). **Ignoring $Q$ in the bound strongly overestimates the achievable performance**, especially for velocity, which is the component directly driven by the noise.
 

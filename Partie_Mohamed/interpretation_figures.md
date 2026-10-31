@@ -277,7 +277,7 @@ B and C share the same trajectories, measurements and EKF runs, so their red and
 
 ### 5.1 Experiment A: ideal model
 
-![A](experience_A.png)
+![A](figures/experience_A.png)
 
 Values at $t = 30\,\text{s}$ (3σ):
 
@@ -292,7 +292,7 @@ Values at $t = 30\,\text{s}$ (3σ):
 
 ### 5.2 Experiment B: mis-specified bound
 
-![B](experience_B.png)
+![B](figures/experience_B.png)
 
 | | BCR($Q=0$) | mean P | RMSE |
 |---|---|---|---|
@@ -304,7 +304,7 @@ Values at $t = 30\,\text{s}$ (3σ):
 
 ### 5.3 Experiment C: consistent model
 
-![C](experience_C.png)
+![C](figures/experience_C.png)
 
 | | BCR($Q$) | mean P | RMSE |
 |---|---|---|---|
@@ -317,7 +317,7 @@ Values at $t = 30\,\text{s}$ (3σ):
 
 ### 5.4 Comparison B vs. C
 
-![B vs C](comparison_B_C.png)
+![B vs C](figures/comparison_B_C.png)
 
 The two bounds agree for the first $\approx 5\,\text{s}$, while information is high and accumulated noise is small. After that they separate:
 
