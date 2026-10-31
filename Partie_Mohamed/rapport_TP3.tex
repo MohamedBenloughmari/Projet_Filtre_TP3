@@ -11,6 +11,7 @@
 \usepackage{booktabs}
 \usepackage{caption}
 \usepackage{enumitem}
+\usepackage[section]{placeins}
 \usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
 
 \graphicspath{{figures/}}
@@ -80,9 +81,8 @@ En dérivant par rapport à $\theta$, on obtient le score :
 \nabla_\theta \ln p(y_{1:n} \mid \theta)
 = \sum_{i=1}^{n} \frac{y_i - h_i(\theta)}{\sigma_i^2} \left(\frac{\partial h_i}{\partial \theta}(\theta)\right)^{\!\top}
 = \sum_{i=1}^{n} \frac{\epsilon_i}{\sigma_i^2}\, g_i,
-\qquad g_i \triangleq \left(\frac{\partial h_i}{\partial \theta}(\theta)\right)^{\!\top} \in \mathbb{R}^d.
+\qquad g_i = \left(\frac{\partial h_i}{\partial \theta}(\theta)\right)^{\!\top} \in \mathbb{R}^d.
 \end{equation}
-On vérifie au passage que le score est centré, puisque $\E[\epsilon_i] = 0$.
 
 \paragraph{Information de Fisher.}
 Par définition, $J(\theta) = \E_{Y\mid\theta}\big[\nabla_\theta \ln p \,(\nabla_\theta \ln p)^\top\big]$. Les vecteurs $g_i$ sont déterministes (ils ne dépendent que de $\theta$), donc
@@ -97,27 +97,6 @@ J(\theta) = \sum_{i=1}^{n} \frac{\sigma_i^2}{\sigma_i^4}\, g_i\, g_i^\top
 \frac{\partial h_i}{\partial \theta}(\theta),
 \end{equation}
 ce qui établit~\eqref{eq:q0}. \hfill$\blacksquare$
-
-\paragraph{Vérification par la hessienne.}
-On retrouve le même résultat avec la seconde forme $J(\theta) = -\E\big[\nabla_\theta \nabla_\theta^\top \ln p\big]$. En dérivant le score une seconde fois :
-\begin{equation}
--\nabla_\theta \nabla_\theta^\top \ln p(y_{1:n} \mid \theta)
-= \sum_{i=1}^{n} \frac{1}{\sigma_i^2} \Big( g_i\, g_i^\top - \epsilon_i\, \nabla_\theta^2 h_i(\theta) \Big).
-\end{equation}
-Le second terme, qui fait intervenir la courbure de $h_i$, est d'espérance nulle car $\E[\epsilon_i] = 0$. Il reste bien~\eqref{eq:q0}.
-
-\paragraph{Écriture matricielle et interprétation.}
-En empilant les jacobiennes dans $H(\theta) \in \mathbb{R}^{n\times d}$, de lignes $\frac{\partial h_i}{\partial \theta}(\theta)$, et en posant $R = \diag(\sigma_1^2, \dots, \sigma_n^2)$, on obtient la forme compacte
-\begin{equation}
-J(\theta) = H(\theta)^\top R^{-1} H(\theta).
-\end{equation}
-Plusieurs remarques en découlent :
-\begin{itemize}[nosep]
-  \item \textbf{Additivité.} Chaque mesure indépendante ajoute sa propre contribution $g_i g_i^\top / \sigma_i^2$, qui est de rang~1. Une mesure précise ($\sigma_i$ petit) ou très sensible au paramètre ($\|g_i\|$ grand) apporte beaucoup d'information.
-  \item \textbf{Observabilité.} Si les gradients $g_1, \dots, g_n$ n'engendrent pas $\mathbb{R}^d$, $J(\theta)$ est singulière et la BCR n'est pas définie : certaines directions de $\theta$ ne sont pas identifiables. C'est exactement le cas $\varphi = 0$ étudié en Q1.
-  \item \textbf{Cas linéaire.} Si $h(\theta) = A\theta$, alors $J = A^\top R^{-1} A$ ne dépend plus de $\theta$, et l'estimateur des moindres carrés pondérés $\hat\theta = (A^\top R^{-1} A)^{-1} A^\top R^{-1} y$ est non biaisé de covariance $J^{-1}$ : il atteint la borne.
-  \item \textbf{Lien avec la suite du TP.} Ce résultat fournit le terme de mesure $\frac{1}{\sigma_k^2} H_k^\top H_k$ des récursions~\eqref{eq:bcr_det} et~\eqref{eq:pcrb}, où $H_k = \frac{\partial h_k}{\partial X_k}(X_k)$ est la jacobienne (ligne) de la mesure angulaire.
-\end{itemize}
 
 \subsection{Question Q1a : calcul de la BCR (dynamique linéaire non bruitée)}
 
@@ -152,7 +131,7 @@ J_k = \Phi^{-\top} J_{k-1} \Phi^{-1} + \frac{1}{\sigma_k^2} H_k^\top H_k,
 \;}
 \label{eq:bcr_det}
 \end{equation}
-où $H_k = \nabla_{X_k} h_k(X_k)$ est le gradient de la fonction de mesure.
+où $H_k = \dfrac{\partial h_k}{\partial X_k}(X_k) \in \mathbb{R}^{1\times4}$ est la jacobienne de la fonction de mesure.
 
 \paragraph{Jacobienne de la mesure.}
 En posant $\Delta x_k = x_k - x_k^o$ et $\Delta y_k = y_k - y_k^o$, on obtient :
@@ -254,6 +233,7 @@ La figure~\ref{fig:q1_trajectoires} montre les trajectoires nominales pour l'ang
 
 La figure~\ref{fig:q1_incertitudes} montre l'évolution des écarts-types associés à la borne. Les incertitudes sur la position augmentent légèrement pendant la première partie de la trajectoire : tant que l'observateur conserve son cap initial, les mesures angulaires déterminent mal la position de la cible. Au voisinage de la manœuvre ($t \approx 50$\,s), les incertitudes diminuent fortement, car le changement de cap apporte une information nouvelle sur l'état. Elles continuent ensuite globalement à diminuer jusqu'à la dernière mesure. Les incertitudes sur la vitesse diminuent également au cours du temps, selon la géométrie d'observation.
 
+\FloatBarrier
 \subsection{Bilan de la partie 1}
 
 L'étude du cas $\varphi = 0$ sans information a priori met en évidence une perte d'observabilité : la matrice d'information finale est singulière lorsque l'observateur conserve une trajectoire rectiligne. L'optimisation numérique identifie un angle de manœuvre optimal de $114{,}9^\circ$ pour le scénario étudié, avec une RMS finale minimale de $115{,}540$\,m. La manœuvre de l'observateur joue donc un rôle essentiel dans l'observabilité et la précision du pistage, et la BCR permet de comparer les trajectoires possibles avant toute expérience.
@@ -272,8 +252,8 @@ X_k = \Phi X_{k-1} + \eta_k, \qquad
 Q = \begin{pmatrix} 10^{-4} & 0 \\ 0 & 10^{-2} \end{pmatrix},
 \label{eq:dyn}
 \end{equation}
-avec $\Delta t = 1$\,s et l'a priori $X_0 \sim \N\big((0, 5)^\top, \diag(100, 1)\big)$.
-Un capteur placé en $C = (x_c, y_c) = (0, -20)$ mesure uniquement l'azimut (l'angle) de l'objet :
+avec $\Delta t = 1$\,s et $X_0 \sim \N\big((0, 5)^\top, \diag(100, 1)\big)$.
+Un capteur placé en $C = (x_c, y_c) = (0, -20)$ mesure uniquement l'angle de l'objet :
 \begin{equation}
 z_k = \theta_k + \nu_k, \qquad \theta_k = \atantwo(0 - y_c,\; s_k - x_c), \qquad \nu_k \sim \N\big(0, (1^\circ)^2\big).
 \label{eq:mes}
@@ -282,8 +262,7 @@ La mesure est non linéaire et ne dépend que de $s_k$. La vitesse n'est jamais 
 
 \subsection{Question 2a : calcul de la BCR avec bruit de dynamique}
 
-\paragraph{Récursion.}
-Pour une dynamique linéaire gaussienne et une mesure non linéaire, la matrice d'information de Fisher $J_k$ vérifie la récursion de Tichavský \emph{et al.}~\cite{tichavsky1998} :
+Pour une dynamique linéaire gaussienne et une mesure non linéaire, la matrice d'information de Fisher $J_k$ vérifie la récursion de Tichavský\footnote{P.~Tichavský, C.~H. Muravchik et A.~Nehorai, « Posterior Cramér-Rao bounds for discrete-time nonlinear filtering », \emph{IEEE Transactions on Signal Processing}, vol.~46, n\textsuperscript{o}~5, p.~1386--1396, 1998.} :
 \begin{equation}
 \boxed{\;
 J_{k+1} = \big(\Phi J_k^{-1} \Phi^\top + Q\big)^{-1} + \E_{X_{k+1}}\!\Big[H_{k+1}(X_{k+1})^\top R^{-1} H_{k+1}(X_{k+1})\Big]
@@ -296,8 +275,6 @@ Chaque pas comporte deux parties :
   \item \textbf{Prédiction (perte d'information).} $\Phi J_k^{-1} \Phi^\top + Q$ est la borne prédite sur la covariance. Son inverse donne l'information prédite. Plus $Q$ est grand, plus on perd d'information entre deux mesures.
   \item \textbf{Mesure (gain d'information).} La nouvelle mesure d'angle ajoute $H^\top R^{-1} H$, moyenné sur les états vrais possibles.
 \end{itemize}
-Il s'agit de la forme informationnelle du filtre de Kalman. La seule différence est l'espérance : comme $h$ est non linéaire, $H$ dépend de l'état et doit être moyenné sur la loi de $X_{k+1}$.
-Pour $Q = 0$, le premier terme devient $\Phi^{-\top} J_k \Phi^{-1}$, ce qui correspond à la récursion de la partie~1. Le code traite les deux cas de la même façon : il forme $P_{\mathrm{pred}} = \Phi J_k^{-1} \Phi^\top + Q$, puis l'inverse.
 
 \paragraph{Jacobienne de la mesure.}
 Pour $\theta = \atantwo(y, x)$, on a $d\theta = (-y\,dx + x\,dy)/(x^2 + y^2)$. Avec $x = s - x_c$ et $y = -y_c$ (constante), on obtient :
@@ -311,25 +288,21 @@ d'où l'information apportée par une mesure :
 H^\top R^{-1} H = \frac{y_c^2}{\sigma_\theta^2\, r^4} \begin{pmatrix} 1 & 0 \\ 0 & 0 \end{pmatrix}.
 \label{eq:info}
 \end{equation}
-Elle décroît en $1/r^4$. Comme l'objet avance à environ $5$\,m/s, une mesure d'angle à $t = 30$\,s apporte environ $10^4$ fois moins d'information qu'une mesure à $t = 1$\,s.
+Elle décroît en $1/r^4$. Comme l'objet avance à environ $5$\,m/s, une mesure d'angle à $t = 30$\,s apporte environ $10^3$ fois moins d'information qu'une mesure à $t = 1$\,s.
 
 \paragraph{Calcul de l'espérance par Monte-Carlo.}
 L'espérance dans~\eqref{eq:pcrb} n'a pas de forme explicite. On l'approche avec $M$ échantillons :
 \begin{equation}
 \E\big[H^\top R^{-1} H\big] \approx \frac1M \sum_{m=1}^{M} H\big(X_{k+1}^{(m)}\big)^\top R^{-1} H\big(X_{k+1}^{(m)}\big).
 \end{equation}
-Les échantillons sont tirés selon la \emph{loi a priori (non conditionnelle)} de $X_{k+1}$. On tire $X_0^{(m)} \sim \N(\bar X_0, P_0)$, puis on propage chaque échantillon par $X_{k+1}^{(m)} = \Phi X_k^{(m)} + \eta_k^{(m)}$, avec le $Q$ supposé par la borne. Ils ne doivent \emph{pas} être tirés selon la loi a posteriori d'un filtre : la BCR ne dépend que du modèle, et non d'un filtre ou d'un jeu de mesures particulier.
+Les échantillons sont tirés selon la loi a priori de $X_{k+1}$. On tire $X_0^{(m)} \sim \N(\bar X_0, P_0)$, puis on propage chaque échantillon par $X_{k+1}^{(m)} = \Phi X_k^{(m)} + \eta_k^{(m)}$, avec le $Q$ supposé par la borne.
 Avec $M = 15\,000$, l'erreur relative de Monte-Carlo est d'environ $1/\sqrt{M} \approx 1\,\%$, ce qui est négligeable.
 
-\paragraph{Vérification à $t = 1$.}
-En évaluant $H$ à la position moyenne $s_1 \approx 5$\,m, on obtient $|H| \approx 20/425 = 0{,}047$\,rad/m, soit un écart-type équivalent $\sqrt{R}/|H| \approx 0{,}01745/0{,}047 \approx 0{,}37$\,m.
-Ce résultat est proche de la valeur calculée $\sqrt{\BCR_{ss}} = 0{,}42$\,m (tableau~\ref{tab:resultats}). Le petit écart vient du fait que le code moyenne $H$ sur la dispersion de $s_1$ au lieu de l'évaluer en sa moyenne.
-En revanche, $\sqrt{\BCR_{vv}}$ reste à $\approx 1$\,m/s, sa valeur a priori, car une seule mesure d'angle ne contient aucune information sur la vitesse.
 
 \subsection{Question 2b : comparaison de la BCR et de l'EKF}
 
 \paragraph{Protocole.}
-Le même EKF (mise à jour sous forme de Joseph, avec repliement de l'angle d'innovation) est appliqué à $N = 500$ trajectoires simulées sur $30$\,s. On compare trois cas (tableau~\ref{tab:cas}) ; les cas B et C utilisent exactement les mêmes trajectoires et les mêmes exécutions de l'EKF, seule la borne change.
+Un EKF est appliqué à $N = 500$ trajectoires simulées sur $30$\,s. On compare trois cas (tableau~\ref{tab:cas}) ; les cas B et C utilisent exactement les mêmes trajectoires et les mêmes exécutions de l'EKF, seule la borne change.
 
 \begin{table}[ht]
 \centering
@@ -362,7 +335,7 @@ On évalue ainsi deux propriétés :
 
 \begin{table}[ht]
 \centering
-\caption{Écarts-types ($1\sigma$ ; les figures montrent $3\sigma$). Position $s$ en m, vitesse $v$ en m/s. $N = 500$ simulations, $M = 15\,000$.}
+\caption{Écarts-types ($\sigma$). Position $s$ en m, vitesse $v$ en m/s. $N = 500$ simulations, $M = 15\,000$.}
 \label{tab:resultats}
 \begin{tabular}{cr cc cc cc}
 \toprule
@@ -403,7 +376,7 @@ C & 1,0 & 1,0 & 1,3 & 1,04 \\
 \end{tabular}
 \end{table}
 
-\paragraph{Cas A : aucun bruit de dynamique (Q2b-1).}
+\paragraph{Cas A : aucun bruit de dynamique.}
 
 \begin{figure}[ht]
 \centering
@@ -414,13 +387,13 @@ C & 1,0 & 1,0 & 1,3 & 1,04 \\
 
 La BCR se comporte comme attendu pour une dynamique déterministe (figure~\ref{fig:A}). La borne sur la position descend d'abord à $0{,}4$\,m, tant que l'objet est proche du capteur, puis augmente lentement car les mesures d'angle apportent de moins en moins d'information~\eqref{eq:info}. La borne sur la vitesse continue de diminuer : chaque nouvelle mesure affine l'estimation de la vitesse, qui est constante.
 
-L'EKF, en revanche, \textbf{n'est pas consistant}. Son erreur réelle est 2 à 3 fois plus grande que la covariance qu'il annonce, et elle est loin de la borne (facteur $3{,}3$ en position et $3{,}9$ en vitesse à $k = 30$). Deux mécanismes l'expliquent :
+L'EKF, en revanche, n'est pas consistant. Son erreur réelle est 2 à 3 fois plus grande que la covariance qu'il annonce, et elle est loin de la borne (facteur $3{,}3$ en position et $3{,}9$ en vitesse à $k = 30$). Deux mécanismes l'expliquent :
 \begin{enumerate}[nosep]
-  \item \emph{Erreur de linéarisation à la première mise à jour.} L'incertitude initiale sur la position ($\sigma = 10$\,m) est du même ordre que la distance au capteur ($20$\,m). Sur un tel intervalle, $\atantwo$ est fortement non linéaire : la jacobienne $H(\hat X^-)$ est une mauvaise approximation, et la première correction est biaisée. On le voit à $k = 1$ : RMSE de $2{,}1$\,m contre une borne de $0{,}4$\,m.
+  \item \emph{Erreur de linéarisation à la première mise à jour.} L'incertitude initiale sur la position ($\sigma = 10$\,m) est du même ordre que la distance au capteur ($20$\,m). Sur un tel intervalle, $\atantwo$ est fortement non linéaire : la jacobienne $H(\hat X_{k|k-1})$ est une mauvaise approximation, et la première correction est biaisée. On le voit à $k = 1$ : RMSE de $2{,}1$\,m contre une borne de $0{,}4$\,m.
   \item \emph{Aucun mécanisme de rattrapage.} Avec $Q = 0$, $P_k$ ne fait que décroître, donc le gain $K_k \to 0$. Le filtre accorde de moins en moins de poids aux nouvelles mesures. L'erreur initiale est propagée par la dynamique, et $e_s \approx e_s^{(0)} + t\, e_v$ croît linéairement avec le temps.
 \end{enumerate}
 
-\paragraph{Cas B : bruit de dynamique dans la vérité et l'EKF, pas dans la BCR (Q2b-2).}
+\paragraph{Cas B : bruit de dynamique dans la vérité et l'EKF, pas dans la BCR.}
 
 \begin{figure}[ht]
 \centering
@@ -429,12 +402,12 @@ L'EKF, en revanche, \textbf{n'est pas consistant}. Son erreur réelle est 2 à 3
 \label{fig:B}
 \end{figure}
 
-L'EKF est maintenant \textbf{consistant} : $\RMSE \approx \EKF$ pour les deux composantes ($4{,}58$ contre $4{,}47$\,m et $0{,}39$ contre $0{,}40$\,m/s à $k = 30$, figure~\ref{fig:B}). Avec $Q > 0$, la covariance prédite ne tend pas vers zéro. Le gain reste donc significatif et le filtre continue de se corriger grâce aux nouvelles mesures : l'erreur de linéarisation initiale est oubliée.
+L'EKF est maintenant consistant : $\RMSE \approx \EKF$ pour les deux composantes ($4{,}58$ contre $4{,}47$\,m et $0{,}39$ contre $0{,}40$\,m/s à $k = 30$, figure~\ref{fig:B}). Avec $Q > 0$, la covariance prédite ne tend pas vers zéro. Le gain reste donc significatif et le filtre continue de se corriger grâce aux nouvelles mesures : l'erreur de linéarisation initiale est oubliée.
 
-La borne, elle, est \textbf{mal spécifiée}. C'est la même courbe que dans le cas A, car elle ignore le bruit de dynamique. Elle est $2{,}7$ fois plus basse que la RMSE en position et $6{,}2$ fois plus basse en vitesse.
+La borne, elle, est mal spécifiée. C'est la même courbe que dans le cas A, car elle ignore le bruit de dynamique. Elle est $2{,}7$ fois plus basse que la RMSE en position et $6{,}2$ fois plus basse en vitesse.
 Cette courbe n'est pas une borne valide pour ce problème : l'inégalité de Cramér-Rao n'est vraie que pour le modèle utilisé pour calculer $J_k$. Elle indique seulement ce qui serait possible \emph{si} l'objet ne subissait aucune accélération aléatoire. Il serait donc faux d'en conclure que l'EKF est loin de l'optimum.
 
-\paragraph{Cas C : même bruit de dynamique partout (Q2b-3).}
+\paragraph{Cas C : même bruit de dynamique partout.}
 
 \begin{figure}[ht]
 \centering
@@ -463,6 +436,7 @@ L'EKF est \textbf{proche de l'efficacité} : à $k = 30$, sa RMSE dépasse la bo
 Les deux bornes coïncident pendant les $5$ premières secondes environ : les mesures sont alors très informatives et peu de bruit de dynamique s'est accumulé (figure~\ref{fig:BC}). Elles divergent ensuite : à $k = 30$, la borne correcte (C) est $2{,}1$ fois plus grande en position et $5{,}9$ fois plus grande en vitesse que la borne mal spécifiée (B).
 \textbf{Ignorer $Q$ dans la borne surestime fortement la performance atteignable}, en particulier pour la vitesse, qui est la composante directement soumise au bruit.
 
+\FloatBarrier
 \subsection{Bilan de la partie 2}
 
 \begin{itemize}[nosep]
@@ -471,9 +445,6 @@ Les deux bornes coïncident pendant les $5$ premières secondes environ : les me
   \item Un peu de bruit de dynamique dans le filtre le rend plus robuste : le gain reste ouvert et le filtre peut se remettre des erreurs de linéarisation.
 \end{itemize}
 
-\begin{remarque}[Limite]
-La BCR est une borne locale, fondée sur la courbure de la vraisemblance. Elle peut être optimiste lorsque la loi a posteriori est étalée ou multimodale, ce qui est le cas ici au premier instant. Des bornes globales, comme celle de Ziv-Zakai, sont plus adaptées à ce régime.
-\end{remarque}
 
 % =====================================================================
 \section*{Conclusion}
@@ -484,14 +455,5 @@ Sa formulation récursive s'adapte naturellement au filtrage et permet d'optimis
 La comparaison avec un filtre de Kalman étendu permet de distinguer deux questions : la consistance du filtre et son efficacité.
 Elle rappelle aussi que la borne n'a de sens que si elle repose sur le vrai modèle, et qu'elle reste une borne locale, à compléter par des bornes globales en faible rapport signal sur bruit.
 
-\begin{thebibliography}{9}
-\bibitem{tichavsky1998}
-P.~Tichavský, C.~H. Muravchik et A.~Nehorai,
-\newblock « Posterior Cramér-Rao bounds for discrete-time nonlinear filtering »,
-\newblock \emph{IEEE Transactions on Signal Processing}, vol.~46, n\textsuperscript{o}~5, p.~1386--1396, 1998.
-\bibitem{dambreville}
-F.~Dambreville,
-\newblock \emph{Filtrage bayésien et approximation particulaire --- Bornes de Cramér-Rao}, support de cours, ONERA / ENSTA, 2026.
-\end{thebibliography}
 
 \end{document}
